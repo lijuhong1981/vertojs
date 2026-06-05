@@ -4,12 +4,12 @@ import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import deepMix from "@lijuhong1981/jslib/src/deepMix.js";
 import generateGUID from "@lijuhong1981/jslib/src/generateGUID.js";
 import * as logger from "@lijuhong1981/jslib/src/logger.js";
+import parseUrl from "@lijuhong1981/jsurl/src/parseUrl.js";
 import Conference from "./Conference.js";
 import Dialog from "./Dialog.js";
 import { EventType, VertoMethod } from "./Enums.js";
 import JsonRpcClient from "./JsonRpcClient.js";
-import { ensureIceServers, getMediaElementByTag } from "./Tools.js";
-import parseUrl from "@lijuhong1981/jsurl/src/parseUrl.js";
+import { getMediaElementByTag } from "./Tools.js";
 
 /**
  * 登录账号配置数据
@@ -101,6 +101,7 @@ class VertoClient extends Destroyable {
      * @param {number|undefined} options.localParams.overtime 等待接听超时时间，单位毫秒，默认30000
      * @param {LoginData} options.loginData 登录账号配置数据
      * @param {DeviceParams} options.deviceParams 设备相关配置参数
+     * @param {boolean} options.enableLog 是否启用日志输出，默认true
      * @param {object} callbacks 回调通知
      * @param {Function} callbacks.onClientEvent 客户端事件回调
      * @param {Function} callbacks.onDialogEvent 会话事件回调
@@ -153,10 +154,13 @@ class VertoClient extends Destroyable {
                     },
                     facingMode: 'user',
                 },
-            }
+            },
+            enableLog: true,
         }, options);
         self.callbacks = callbacks;
         // logger.log('Create Verto:', self.options);
+
+        self.options.enableLog ? logger.enable() : logger.disable();
 
         const urlParsed = parseUrl(self.options.fsConfig.url);
         self.urlParsed = urlParsed;
@@ -202,6 +206,19 @@ class VertoClient extends Destroyable {
         (async () => {
             self.ringer = await getMediaElementByTag(self.options.localParams.ringerTag, true);
         })();
+    }
+
+    /**
+     * 是否启用日志输出
+     * @type {boolean}
+     * @default true
+    */
+    set enableLog(value) {
+        this.options.enableLog = value;
+        value ? logger.enable() : logger.disable();
+    }
+    get enableLog() {
+        return this.options.enableLog;
     }
 
     /**
