@@ -1,10 +1,21 @@
 {
   "name": "@lijuhong1981/vertojs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "type": "module",
   "module": "build/verto.esm.js",
   "main": "build/verto.umd.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "build",
+    "src",
+    "API.md",
+    "index.js",
+    "package.json",
+    "README.md"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
