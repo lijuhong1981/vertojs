@@ -2,8 +2,8 @@ import Check from "@lijuhong1981/jscheck/src/Check.js";
 import isFunction from "@lijuhong1981/jscheck/src/isFunction.js";
 import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import deepMix from "@lijuhong1981/jslib/src/deepMix.js";
-import * as logger from "@lijuhong1981/jslib/src/logger.js";
 import { EventType } from "./Enums";
+import { logger } from "./Tools.js";
 
 /**
  * JsonRPC协议客户端，用于JsonRPC协议消息的发送与接受，目前只支持WebSocket连接方式
@@ -615,3 +615,4 @@ class JsonRpcClient extends Destroyable {
 
 export default JsonRpcClient;
 export { JsonRpcClient };
+

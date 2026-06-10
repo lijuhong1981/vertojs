@@ -1,5 +1,8 @@
 import isAsyncFunction from "@lijuhong1981/jscheck/src/isAsyncFunction.js";
 import isFunction from "@lijuhong1981/jscheck/src/isFunction.js";
+import Log from "@lijuhong1981/jslib/src/Log.js";
+
+const logger = new Log();
 
 /**
  * @param {string|HTMLMediaElement|Function} tag
@@ -108,5 +111,6 @@ export {
     getLocalIP,
     getMediaElementByTag,
     getMemberNumbers,
+    logger
 };
 

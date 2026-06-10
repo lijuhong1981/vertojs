@@ -1,8 +1,7 @@
-import isDefined from "@lijuhong1981/jscheck/src/isDefined";
 import isFunction from "@lijuhong1981/jscheck/src/isFunction.js";
 import deepMix from "@lijuhong1981/jslib/src/deepMix.js";
 import HashArray from "@lijuhong1981/jslib/src/HashArray.js";
-import * as logger from "@lijuhong1981/jslib/src/logger.js";
+import { logger } from "./Tools.js";
 
 /**
  * @param {MediaStream} stream
@@ -34,8 +33,8 @@ const audioOutDevices = [];
  * @param {Function} callback
  * @returns {Promise}
  */
-async function enumerateDevices(callback) {
-    logger.info("enumerate devices start.");
+async function enumerateMediaDevices(callback) {
+    logger.info("enumerate media devices start.");
     devicesHash.clear();
     audioInDevices.length = 0;
     audioOutDevices.length = 0;
@@ -98,7 +97,7 @@ async function enumerateDevices(callback) {
     }
 
     function handleError(error) {
-        logger.error('enumerate devices error: ', error);
+        logger.error('enumerate media devices error: ', error);
         isFunction(callback) && callback(false, error);
     }
 
@@ -297,7 +296,7 @@ async function startRecord(options = {}) {
 export {
     audioInDevices,
     audioOutDevices,
-    enumerateDevices,
+    enumerateMediaDevices,
     getDeviceIdByLabel,
     getUserMediaConstraints,
     getUserMediaStream,

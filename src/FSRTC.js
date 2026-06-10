@@ -2,10 +2,12 @@ import Check from "@lijuhong1981/jscheck/src/Check.js";
 import isFunction from "@lijuhong1981/jscheck/src/isFunction.js";
 import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import deepMix from "@lijuhong1981/jslib/src/deepMix.js";
-import * as logger from "@lijuhong1981/jslib/src/logger.js";
-import Dialog from "./Dialog.js";
 import { getUserMediaConstraints, getUserMediaStream, stopMediaStream, } from "./MediaDevice.js";
-import { ensureIceServers } from "./Tools.js";
+import { ensureIceServers, logger } from "./Tools.js";
+
+/**
+ * @import Dialog from "./Dialog.js";
+*/
 
 // Find the line in sdpLines that starts with |prefix|, and, if specified,
 // contains |substr| (case-insensitive search).
@@ -815,3 +817,4 @@ class FSRTC extends Destroyable {
 
 export default FSRTC;
 export { FSRTC };
+

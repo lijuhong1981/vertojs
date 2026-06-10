@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--解决https页面中请求http地址失败的问题-->
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <title>demo</title>
+    <style>
+        html,
+        body {
+            /* set margin to 0 and overflow to hidden, to go fullscreen */
+            margin: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #777777;
+        }
+
+        #localVideo {
+            position: absolute;
+            z-index: 99;
+            left: 0;
+            bottom: 0;
+            width: 30%;
+            height: 30%;
+        }
+
+        #remoteVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <dialog id="confirmDialog">
+        <p>标题</p>
+        <button>确认</button>
+        <button>取消</button>
+    </dialog>
+    <audio id="ringer"></audio>
+    <video id="localVideo" autoplay="true" muted="true"></video>
+    <video id="remoteVideo" autoplay="true"></video>
+    <!-- <script type="text/javascript" src="./js/vconsole.min.js"></script> -->
+    <script type="text/javascript" src="./js/dat.gui.min.js"></script>
+    <script type="text/javascript" src="../build/vertojs.umd.js"></script>
+    <script type="text/javascript">
+        // const vConsole = new VConsole();
+        const confirmDialog = document.getElementById('confirmDialog');
+        const ringer = document.getElementById('ringer');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+
+        function showConfirmDialog(text, callback) {
+            return new Promise((resolve, reject) => {
+                const title = confirmDialog.children[0];
+                const okButton = confirmDialog.children[1];
+                const cancelButton = confirmDialog.children[2];
+
+                function close() {
+                    confirmDialog.close();
+                    okButton.onclick = null;
+                    cancelButton.onclick = null;
+                }
+
+                title.innerText = text;
+                okButton.onclick = function () {
+                    close();
+                    resolve(true);
+                    if (typeof callback === "function")
+                        callback(true);
+                };
+                cancelButton.onclick = function () {
+                    close();
+                    resolve(false);
+                    if (typeof callback === "function")
+                        callback(false);
+                };
+
+                confirmDialog.showModal();
+            });
+        }
+
+        async function getLocalVideo() {
+            return localVideo;
+        }
+
+        async function getRemoteVideo() {
+            return remoteVideo;
+        }
+
+        const gui = new dat.GUI();
+        gui.open();
+
+        let vertoClient, current_dialog, current_conference, videoLayoutsFolder, membersFolder;
+        let membersArray = {};
+
+        //页面刷新或关闭前的处理
+        window.addEventListener('beforeunload', function () {
+            //登出
+            if (vertoClient)
+                vertoClient.logout();
+        });
+
+        //事件回调通知
+        const callbacks = {
+            //登录事件通知
+            onLoginEvent: function (event) {
+                console.log('onLoginEvent:', event);
+            },
+            //客户端事件通知
+            onClientEvent: function (event) {
+                console.log('onClientEvent:', event);
+            },
+            //会话事件通知
+            onDialogEvent: function (event) {
+                console.log('onDialogEvent:', event);
+                const dialog = event.dialog;
+                if (event.type === VertoJS.EventType.stateChange) { //会话状态变化事件
+                    switch (event.state) {
+                        case VertoJS.Dialog.State.new://新建会话
+                            current_dialog = dialog;
+                            dialogParams.caller = dialog.params.caller_id_number;
+                            dialogParams.callee = dialog.params.callee_id_number;
+                            break;
+                        case VertoJS.Dialog.State.readying://会话准备中，获取本地媒体流，建立RTCPeerConnection
+                            break;
+                        case VertoJS.Dialog.State.inviting://正在发送会话邀请请求
+                            break;
+                        case VertoJS.Dialog.State.trying://发送会话请求成功，等待FS的呼叫尝试
+                            break;
+                        case VertoJS.Dialog.State.waiting://呼叫成功，对方已响铃，获取到FS下发的早期流媒体，等待对方应答
+                            break;
+                        case VertoJS.Dialog.State.ringing://响铃事件
+                            showConfirmDialog('你收到来自' + dialog.params.caller_id_number + '的呼叫，是否接听?').then((confirm) => {
+                                if (confirm) {
+                                    //接听
+                                    dialog.answer();
+                                } else {
+                                    //拒接
+                                    dialog.reject();
+                                }
+                            });
+                            break;
+                        case VertoJS.Dialog.State.answering://正在发送会话接听请求
+                            break;
+                        case VertoJS.Dialog.State.attaching://正在发送会话恢复请求
+                            break;
+                        case VertoJS.Dialog.State.active://会话已建立，通话中
+                            dialogParams.isHold = false;
+                            initDialogGUI();
+                            break;
+                        case VertoJS.Dialog.State.holding://保持会话
+                            dialogParams.isHold = true;
+                            break;
+                        case VertoJS.Dialog.State.hangup://挂断会话
+                            break;
+                        case VertoJS.Dialog.State.destroy://销毁会话
+                            current_dialog = null;
+                            initCallGUI();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                // else if (event.type === VertoJS.EventType.localStream) { //获取本地媒体流事件
+                //     const stream = event.stream;
+                //     //TODO 自行处理本地媒体流
+                // } else if (event.type === VertoJS.EventType.remoteStream) { //获取远程媒体流事件
+                //     const stream = event.stream;
+                //     //TODO 自行处理远程媒体流
+                // }
+            },
+            //组会事件通知
+            onConferenceEvent: function (event) {
+                if (event.action !== VertoJS.Conference.LiveArrayAction.modify)
+                    console.log('onConferenceEvent:', event);
+                const conference = event.conference;
+                if (event.type === VertoJS.EventType.stateChange) { //组会状态变化事件
+                    switch (event.state) {
+                        case VertoJS.Conference.State.new: //新建组会
+                            current_conference = conference;
+                            break;
+                        case VertoJS.Conference.State.join: //加入组会
+                            initConferenceGUI();
+                            break;
+                        case VertoJS.Conference.State.hangup: //挂断组会
+                            break;
+                        case VertoJS.Conference.State.destroy: //销毁组会
+                            current_conference = null;
+                            break;
+                    }
+                } else if (event.type === VertoJS.EventType.liveArray) { //组会成员数组事件
+                    //数组动作
+                    switch (event.action) {
+                        case VertoJS.Conference.LiveArrayAction.bootObj: //初始化
+                            initMemberFolders(event.members);
+                            break;
+                        case VertoJS.Conference.LiveArrayAction.add: //新增成员
+                            addMember(event.member);
+                            break;
+                        case VertoJS.Conference.LiveArrayAction.modify: //成员数据有变化
+                            updateMember(event.member);
+                            break;
+                        case VertoJS.Conference.LiveArrayAction.del: //移除成员
+                            removeMember(event.key);
+                            break;
+                        case VertoJS.Conference.LiveArrayAction.clear: //清除数组
+                            clearMemberFolders();
+                            break;
+                        case VertoJS.Conference.LiveArrayAction.reorder: //数组重排序
+                            initMemberFolders(event.members);
+                            break;
+                        case VertoJS.Conference.LiveArrayAction.error: //数组出错
+                            break;
+                    }
+                } else if (event.type === VertoJS.EventType.info) { //组会信息事件
+                    if (event.eventData && event.eventData.contentType === "layout-info") { //视频画布布局信息
+                        conferenceParams.videoLayout = event.eventData.canvasInfo.layoutName;
+                    }
+                }
+            },
+        };
+
+        const protocols = ["verto", "sip"];
+
+        //----- ServerConfig -----
+        //#region
+        const serverParams = {
+            wssUrl: localStorage.getItem('wssUrl') || 'wss://10.210.60.181:8082',//FreeSwitch wss地址
+            turnServer: false,//是否启用turnServer
+            checkMediaDevices: true,//是否检测媒体设备
+            enableLog: true,//是否启用日志
+            doInit: doInit,
+        };
+
+        async function doInit() {
+            if (!serverParams.wssUrl || serverParams.wssUrl.length === 0) {
+                alert('请输入wssUrl');
+                return;
+            }
+            localStorage.setItem('wssUrl', serverParams.wssUrl);
+
+            if (serverParams.checkMediaDevices)
+                await VertoJS.enumerateMediaDevices();
+
+            vertoClient = VertoJS.createClient({
+                fsConfig: {
+                    url: serverParams.wssUrl,
+                    turnServer: serverParams.turnServer,
+                },
+                localParams: {
+                    remoteTag: getRemoteVideo,//播放远程音视频所使用的媒体标签，未指定则会自动创建一个audio标签
+                    localTag: getLocalVideo,//播放本地音视频如相机所使用的媒体标签，不指定则不显示本地音视频
+                    ringerTag: ringer,//响铃所使用的媒体标签，未指定则会自动创建一个audio标签
+                    ringFile: "sounds/bell_ring2.mp3",//响铃声音文件地址，未指定则无法响铃
+                },
+                enableLog: serverParams.enableLog,//是否启用日志
+            }, callbacks, //回调事件
+            );
+
+            initLoginGUI();
+        }
+
+        function initServerGUI() {
+            console.log('initServerGUI.');
+
+            gui.removeAll();
+
+            gui.add(serverParams, 'wssUrl').name('wss地址');
+            gui.add(serverParams, 'turnServer').name('启用turnServer');
+            gui.add(serverParams, 'checkMediaDevices').name('检测媒体设备');
+            gui.add(serverParams, 'enableLog').name('启用日志');
+            gui.add(serverParams, 'doInit').name('初始化');
+        }
+
+        //#endregion
+
+        //----- 登录 -----
+        //#region 
+
+        //登录参数
+        const loginParams = {
+            account: localStorage.getItem('account') || '1002', //登录账号
+            password: localStorage.getItem('password') || '123456', //密码
+            doLogin: doLogin,
+            doLogout: doLogout,
+        };
+
+        async function doLogin() {
+            if (!loginParams.account || loginParams.account.length === 0) {
+                alert('请输入登录账号');
+                return;
+            }
+            if (!loginParams.password || loginParams.password.length === 0) {
+                alert('请输入登录密码');
+                return;
+            }
+            localStorage.setItem('account', loginParams.account);
+            localStorage.setItem('password', loginParams.password);
+
+            vertoClient.loginData = {
+                account: loginParams.account,
+                password: loginParams.password,
+            };
+
+            vertoClient.login(function (msg) { //success callback 
+                console.log('login success:', msg);
+
+                initCallGUI();
+            }, function (error) {//error callback                
+                console.error('login error:', error);
+            });
+        }
+
+        function doLogout() {
+            if (vertoClient)
+                vertoClient.logout();
+            initLoginGUI();
+        }
+
+        function initLoginGUI() {
+            console.log('initLoginGUI.');
+
+            gui.removeAll();
+
+            gui.add(loginParams, 'account').name('账号');
+            gui.add(loginParams, 'password').name('密码');
+            gui.add(loginParams, 'doLogin').name('登录');
+            gui.open();
+        }
+
+        //#endregion
+
+        //----- 呼叫 -----
+        //#region 
+
+        const callParams = {
+            destination: localStorage.getItem('destination') || '',
+            useVideo: true,
+            doCall: doCall,
+        };
+
+        async function doCall() {
+            if (!callParams.destination || callParams.destination.length === 0) {
+                alert('请输入目标号码');
+                return;
+            }
+            localStorage.setItem('destination', callParams.destination);
+
+            current_dialog = vertoClient.newCall({
+                destinationNumber: callParams.destination, //呼叫号码，必填项
+                wantVideo: callParams.useVideo, //希望视频呼叫，默认false
+            });
+
+            dialogParams.caller = loginParams.account;
+            dialogParams.callee = callParams.destination;
+            initDialogGUI();
+        }
+
+        function initCallGUI() {
+            console.log('initCallGUI.');
+
+            gui.removeAll();
+
+            gui.add(loginParams, 'account').name('当前账号').listen();
+            gui.add(loginParams, 'doLogout').name('登出');
+
+            const folder = gui.addFolder('呼叫');
+            folder.add(callParams, 'destination').name('目标号码');
+            folder.add(callParams, 'useVideo').name('视频');
+            folder.add(callParams, 'doCall').name('发起呼叫');
+            folder.open();
+        }
+
+        //#endregion
+
+        //----- 会话 -----
+        //#region
+
+        const dialogParams = {
+            caller: '',
+            callee: '',
+            micMuted: false,
+            cameraMuted: false,
+            voiceMuted: false,
+            videoInDeviceId: null,
+            videoInFacingMode: null,
+            isHold: false,
+            doToggleHold: doToggleHold,
+            transferNumber: '',
+            doTransfer: doTransfer,
+            doHangup: doHangup,
+        }
+
+        function doToggleHold() {
+            if (current_dialog)
+                current_dialog.toggleHold();
+        }
+
+        function doTransfer() {
+            if (!dialogParams.transferNumber || dialogParams.transferNumber.length === 0)
+                return;
+            if (current_dialog)
+                current_dialog.transfer(dialogParams.transferNumber);
+        }
+
+        function doHangup() {
+            if (current_conference)
+                current_conference.hangup();
+            else if (current_dialog)
+                current_dialog.hangup();
+            // initCallGUI();
+        }
+
+        function initDialogGUI() {
+            console.log('initDialogGUI.');
+
+            gui.removeAll();
+
+            gui.add(loginParams, 'account').name('当前账号').listen();
+
+            const folder = gui.addFolder('会话');
+            folder.add(dialogParams, 'caller').name('呼出号码');
+            folder.add(dialogParams, 'callee').name('被叫号码');
+            folder.add(dialogParams, 'micMuted').name('关闭麦克风').onChange(function () {
+                if (current_dialog)
+                    current_dialog.muteMic(dialogParams.micMuted);
+            });
+            folder.add(dialogParams, 'cameraMuted').name('关闭摄像头').onChange(function () {
+                if (current_dialog)
+                    current_dialog.muteCamera(dialogParams.cameraMuted);
+            });
+            folder.add(dialogParams, 'voiceMuted').name('关闭通话音').onChange(function () {
+                if (current_dialog)
+                    current_dialog.muteVoice(dialogParams.voiceMuted);
+            });
+            const videoInDevices = VertoJS.videoInDevices.map(item => item.id);
+            folder.add(dialogParams, 'videoInDeviceId', videoInDevices).name('切换摄像头').onChange(function () {
+                if (current_dialog)
+                    current_dialog.switchCameraByDeviceId(dialogParams.videoInDeviceId);
+            });
+            folder.add(dialogParams, 'videoInFacingMode', ['user', 'environment']).name('切换前后摄像头').onChange(function () {
+                if (current_dialog)
+                    current_dialog.switchCameraByFacingMode(dialogParams.videoInFacingMode);
+            });
+
+            const holdFolder = folder.addFolder('保持');
+            holdFolder.add(dialogParams, 'isHold').name('已保持').listen();
+            holdFolder.add(dialogParams, 'doToggleHold').name('切换');
+
+            const transferFolder = folder.addFolder('转移');
+            transferFolder.add(dialogParams, 'transferNumber').name('转移号码');
+            transferFolder.add(dialogParams, 'doTransfer').name('转移');
+
+            folder.add(dialogParams, 'doHangup').name('挂断');
+            folder.open();
+        }
+
+        //#endregion
+
+        //----- 组会 -----
+        //#region 
+
+        const conferenceParams = {
+            message: "",
+            sendChat: function () {
+                if (!conferenceParams.message || conferenceParams.message.length === 0)
+                    return;
+                if (current_conference)
+                    current_conference.sendChat(conferenceParams.message);
+            },
+            videoLayouts: [],
+            videoLayout: "",
+            mediaUrl: "",
+            play: function () {
+                if (current_conference)
+                    current_conference.play(conferenceParams.mediaUrl);
+            },
+            stopPlay: function () {
+                if (current_conference)
+                    current_conference.stopPlay();
+            },
+            recordDirPath: '/usr/local/freeswitch/recordings/video',
+            startRecord: function () {
+                if (current_conference) {
+                    current_conference.startRecord(conferenceParams.recordDirPath);
+                }
+            },
+            stopRecord: function () {
+                if (current_conference)
+                    current_conference.stopRecord();
+            },
+            close: function () {
+                if (current_conference)
+                    current_conference.close();
+            }
+        };
+
+        function initConferenceGUI() {
+            console.log('initConferenceGUI.');
+
+            const folder = gui.addFolder('组会');
+            folder.add(conferenceParams, 'message').name('消息');
+            folder.add(conferenceParams, 'sendChat').name('发送');
+
+            if (current_conference.isModerator) {
+                const modFolder = folder.addFolder('主持人');
+                modFolder.open();
+
+                if (current_conference.isVideo) {
+                    videoLayoutsFolder = modFolder.addFolder('视频布局');
+                    videoLayoutsFolder.open();
+
+                    current_conference.listVideoLayouts(function (list) {
+                        console.log("listVideoLayouts:", list);
+
+                        conferenceParams.videoLayouts.length = 0;
+                        list.forEach(element => {
+                            conferenceParams.videoLayouts.push(element.name);
+                        });
+
+                        videoLayoutsFolder.add(conferenceParams, 'videoLayout', conferenceParams.videoLayouts).listen().onChange(function () {
+                            if (!conferenceParams.videoLayout || conferenceParams.videoLayout.length === 0)
+                                return;
+                            if (current_conference)
+                                current_conference.setVideoLayout(conferenceParams.videoLayout);
+                        });
+                    });
+                }
+
+                modFolder.add(conferenceParams, 'mediaUrl');
+                modFolder.add(conferenceParams, 'play').name("播放");
+                modFolder.add(conferenceParams, 'stopPlay').name("停止播放");
+                modFolder.add(conferenceParams, 'recordDirPath').name("录制文件目录");
+                modFolder.add(conferenceParams, 'startRecord').name("开始录制");
+                modFolder.add(conferenceParams, 'stopRecord').name("停止录制");
+                modFolder.add(conferenceParams, 'close').name("结束组会");
+            } else {
+                folder.add(conferenceParams, 'videoLayout').name("视频布局").listen();
+            }
+
+            membersFolder = folder.addFolder('组会成员');
+            membersFolder.open();
+
+            folder.open();
+        }
+
+        function clearMemberFolders() {
+            membersFolder.removeAll();
+            membersArray = {};
+        }
+
+        function initMemberFolders(members) {
+            console.log('initMemberFolders.');
+
+            clearMemberFolders();
+
+            members.forEach(member => {
+                addMember(member);
+            });
+        }
+
+        function addMember(member) {
+            if (!membersArray[member.uuid]) {
+                const folder = membersFolder.addFolder(member.number);
+                folder.add(member, 'id').listen();
+                folder.add(member, 'name').listen();
+
+                const statusFolder = folder.addFolder('状态');
+                statusFolder.add(member, 'isMicMuted').listen();
+                statusFolder.add(member, 'isCameraMuted').listen();
+                statusFolder.add(member, 'isTalking').listen();
+                statusFolder.add(member, 'isVideoFloor').listen();
+                statusFolder.add(member, 'isDeaf').listen();
+                statusFolder.open();
+
+                if (current_conference.isModerator) {
+                    const controlParams = {
+                        kick: function () {
+                            if (current_conference)
+                                current_conference.kick(member.id);
+                        },
+                        videoFloor: function () {
+                            if (current_conference)
+                                current_conference.videoFloor(member.id);
+                        },
+                        presenter: function () {
+                            if (current_conference)
+                                current_conference.presenter(member.id);
+                        },
+                        transferNumber: "",
+                        transfer: function () {
+                            if (!controlParams.transferNumber || controlParams.transferNumber.length === 0)
+                                return;
+                            if (current_conference)
+                                current_conference.transfer(member.id);
+                        },
+                        toggleDeaf: function () {
+                            if (current_conference)
+                                member.isDeaf ? current_conference.undeaf(member.id) : current_conference.deaf(member.id);
+                        },
+                        muteMic: function () {
+                            if (current_conference)
+                                current_conference.muteMic(member.id);
+                        },
+                        muteCamera: function () {
+                            if (current_conference)
+                                current_conference.muteCamera(member.id);
+                        },
+                    };
+
+                    const controlFolder = folder.addFolder('控制');
+                    controlFolder.add(controlParams, 'kick').name('踢出');
+                    controlFolder.add(controlParams, 'videoFloor').name('视频Floor');
+                    controlFolder.add(controlParams, 'presenter').name('设置Presenter');
+                    controlFolder.add(controlParams, 'transferNumber').name('转移号码');
+                    controlFolder.add(controlParams, 'transfer').name('转移');
+                    controlFolder.add(controlParams, 'toggleDeaf').name('切换Deaf');
+                    controlFolder.add(controlParams, 'muteMic').name('开关Mic');
+                    controlFolder.add(controlParams, 'muteCamera').name('开关Camera');
+                }
+
+                membersArray[member.uuid] = {
+                    member,
+                    folder,
+                };
+            }
+        }
+
+        function removeMember(key) {
+            if (membersArray[key]) {
+                membersFolder.removeFolder(membersArray[key].folder);
+
+                delete membersArray[key];
+            }
+        }
+
+        function updateMember(member) {
+            //TODO
+        }
+
+        //#endregion
+
+        initServerGUI();
+    </script>
+</body>
+
+</html>

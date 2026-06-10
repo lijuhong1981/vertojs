@@ -44,6 +44,8 @@
 ## Functions
 
 <dl>
+<dt><a href="#findLine">findLine()</a></dt>
+<dd></dd>
 <dt><a href="#doCallback">doCallback(self, cbName, ...args)</a> ⇒ <code>void</code></dt>
 <dd></dd>
 <dt><a href="#onIceSDP">onIceSDP(self, sd)</a> ⇒ <code>void</code></dt>
@@ -52,7 +54,7 @@
 <dd></dd>
 <dt><a href="#stopMediaStream">stopMediaStream(stream)</a> ⇒ <code>void</code></dt>
 <dd></dd>
-<dt><a href="#enumerateDevices">enumerateDevices(callback)</a> ⇒ <code>Promise</code></dt>
+<dt><a href="#enumerateMediaDevices">enumerateMediaDevices(callback)</a> ⇒ <code>Promise</code></dt>
 <dd><p>枚举本地媒体设备</p>
 </dd>
 <dt><a href="#getDeviceIdByLabel">getDeviceIdByLabel(label)</a> ⇒ <code>string</code></dt>
@@ -80,6 +82,9 @@
 </dd>
 <dt><a href="#ensureIceServers">ensureIceServers(config, options)</a> ⇒ <code>object</code></dt>
 <dd><p>确保WebRTC配置中包含ICE服务器</p>
+</dd>
+<dt><a href="#createClient">createClient(options, callbacks)</a> ⇒ <code><a href="#VertoClient">VertoClient</a></code></dt>
+<dd><p>创建VertoClient实例</p>
 </dd>
 </dl>
 
@@ -1551,6 +1556,7 @@ Verto协议客户端，主要用于与FreeSwitch通信
 
 * [VertoClient](#VertoClient) ⇐ <code>Destroyable</code>
     * [new VertoClient(options, callbacks)](#new_VertoClient_new)
+    * [.enableLog](#VertoClient+enableLog) : <code>boolean</code>
     * [.localParams](#VertoClient+localParams) ⇒ <code>object</code>
     * [.turnServer](#VertoClient+turnServer)
     * [.turnServer](#VertoClient+turnServer) ⇒ <code>boolean</code> \| <code>RTCIceServer</code>
@@ -1597,11 +1603,19 @@ Verto协议客户端，主要用于与FreeSwitch通信
 | options.localParams.overtime | <code>number</code> \| <code>undefined</code> | 等待接听超时时间，单位毫秒，默认30000 |
 | options.loginData | [<code>LoginData</code>](#LoginData) | 登录账号配置数据 |
 | options.deviceParams | [<code>DeviceParams</code>](#DeviceParams) | 设备相关配置参数 |
+| options.enableLog | <code>boolean</code> | 是否启用日志输出，默认true |
 | callbacks | <code>object</code> | 回调通知 |
 | callbacks.onClientEvent | <code>function</code> | 客户端事件回调 |
 | callbacks.onDialogEvent | <code>function</code> | 会话事件回调 |
 | callbacks.onConferenceEvent | <code>function</code> | 组会事件回调 |
 
+<a name="VertoClient+enableLog"></a>
+
+### vertoClient.enableLog : <code>boolean</code>
+是否启用日志输出
+
+**Kind**: instance property of [<code>VertoClient</code>](#VertoClient)  
+**Default**: <code>true</code>  
 <a name="VertoClient+localParams"></a>
 
 ### vertoClient.localParams ⇒ <code>object</code>
@@ -1897,15 +1911,7 @@ Verto协议客户端，主要用于与FreeSwitch通信
 | localStream | <code>string</code> | 本地媒体流事件 |
 | remoteStream | <code>string</code> | 远程媒体流事件 |
 | action | <code>string</code> | 动作事件 |
-| pttJoinGroup | <code>string</code> | 加入PTT群组事件 |
-| pttLeaveGroup | <code>string</code> | 离开PTT群组事件 |
-| pttRequestSpeak | <code>string</code> | PTT群组申请话权事件 |
-| pttReleaseSpeak | <code>string</code> | PTT群组释放话权事件 |
-| pttSpeakerChanged | <code>string</code> | PTT群组发言人改变事件 |
 | message | <code>string</code> | 消息事件 |
-| udpMessage | <code>string</code> | UDP消息事件 |
-| rtpMessage | <code>string</code> | RTP消息事件 |
-| eastcomMessage | <code>string</code> | 东信固定台消息事件 |
 
 <a name="VertoMethod"></a>
 
@@ -1952,6 +1958,11 @@ Verto指令枚举
 音频输出设备列表
 
 **Kind**: global constant  
+<a name="findLine"></a>
+
+## findLine()
+**Kind**: global function  
+**Import**: Dialog from "./Dialog.js";  
 <a name="doCallback"></a>
 
 ## doCallback(self, cbName, ...args) ⇒ <code>void</code>
@@ -1992,9 +2003,9 @@ Verto指令枚举
 | --- | --- |
 | stream | <code>MediaStream</code> | 
 
-<a name="enumerateDevices"></a>
+<a name="enumerateMediaDevices"></a>
 
-## enumerateDevices(callback) ⇒ <code>Promise</code>
+## enumerateMediaDevices(callback) ⇒ <code>Promise</code>
 枚举本地媒体设备
 
 **Kind**: global function  
@@ -2003,10 +2014,10 @@ Verto指令枚举
 | --- | --- |
 | callback | <code>function</code> | 
 
-<a name="enumerateDevices..gotDevices"></a>
+<a name="enumerateMediaDevices..gotDevices"></a>
 
-### enumerateDevices~gotDevices(devices) ⇒ <code>object</code>
-**Kind**: inner method of [<code>enumerateDevices</code>](#enumerateDevices)  
+### enumerateMediaDevices~gotDevices(devices) ⇒ <code>object</code>
+**Kind**: inner method of [<code>enumerateMediaDevices</code>](#enumerateMediaDevices)  
 
 | Param | Type |
 | --- | --- |
@@ -2117,6 +2128,18 @@ Verto指令枚举
 | --- | --- | --- |
 | config | <code>object</code> | WebRTC配置对象 |
 | options | <code>object</code> | 选项对象，包含turnServer和iceServers属性 |
+
+<a name="createClient"></a>
+
+## createClient(options, callbacks) ⇒ [<code>VertoClient</code>](#VertoClient)
+创建VertoClient实例
+
+**Kind**: global function  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| options | <code>object</code> | 配置项，@see VertoClient.constructor |
+| callbacks | <code>object</code> | 回调通知，@see VertoClient.constructor |
 
 <a name="RecordResult"></a>
 

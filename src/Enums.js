@@ -16,15 +16,7 @@
  * @property {string} localStream 本地媒体流事件
  * @property {string} remoteStream 远程媒体流事件
  * @property {string} action 动作事件
- * @property {string} pttJoinGroup 加入PTT群组事件
- * @property {string} pttLeaveGroup 离开PTT群组事件
- * @property {string} pttRequestSpeak PTT群组申请话权事件
- * @property {string} pttReleaseSpeak PTT群组释放话权事件
- * @property {string} pttSpeakerChanged PTT群组发言人改变事件
  * @property {string} message 消息事件
- * @property {string} udpMessage UDP消息事件
- * @property {string} rtpMessage RTP消息事件
- * @property {string} eastcomMessage 东信固定台消息事件
  * @readonly
 */
 const EventType = Object.freeze({
@@ -42,16 +34,7 @@ const EventType = Object.freeze({
     display: 'display',
     localStream: 'localStream',
     remoteStream: 'remoteStream',
-    action: 'action',
-    pttJoinGroup: 'pttJoinGroup',
-    pttLeaveGroup: 'pttLeaveGroup',
-    pttRequestSpeak: 'pttRequestSpeak',
-    pttReleaseSpeak: 'pttReleaseSpeak',
-    pttSpeakerChanged: 'pttSpeakerChanged',
     message: 'message',
-    udpMessage: 'udpMessage',
-    rtpMessage: 'rtpMessage',
-    eastcomMessage: 'eastcomMessage',
 });
 
 /**

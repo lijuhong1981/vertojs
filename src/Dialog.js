@@ -5,15 +5,13 @@ import isStringNotEmpty from "@lijuhong1981/jscheck/src/isStringNotEmpty.js";
 import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import deepMix from "@lijuhong1981/jslib/src/deepMix.js";
 import generateGUID from "@lijuhong1981/jslib/src/generateGUID.js";
-import * as logger from "@lijuhong1981/jslib/src/logger.js";
 import { EventType, VertoMethod } from "./Enums.js";
 import FSRTC from "./FSRTC.js";
 import { getDeviceIdByLabel, getUserMediaConstraints } from "./MediaDevice.js";
-import { getMediaElementByTag } from "./Tools.js";
-import VertoClient from "./VertoClient.js";
+import { getMediaElementByTag, logger } from "./Tools.js";
 
 /**
- * @import { DeviceParams } from "./VertoClient.js";
+ * @import VertoClient, { DeviceParams } from "./VertoClient.js";
 */
 
 /**
@@ -1267,3 +1265,4 @@ Object.defineProperties(Dialog, {
 
 export default Dialog;
 export { Dialog, DialogState, Direction };
+

@@ -3,13 +3,12 @@ import isFunction from "@lijuhong1981/jscheck/src/isFunction.js";
 import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import deepMix from "@lijuhong1981/jslib/src/deepMix.js";
 import generateGUID from "@lijuhong1981/jslib/src/generateGUID.js";
-import * as logger from "@lijuhong1981/jslib/src/logger.js";
 import parseUrl from "@lijuhong1981/jsurl/src/parseUrl.js";
 import Conference from "./Conference.js";
 import Dialog from "./Dialog.js";
 import { EventType, VertoMethod } from "./Enums.js";
 import JsonRpcClient from "./JsonRpcClient.js";
-import { getMediaElementByTag } from "./Tools.js";
+import { getMediaElementByTag, logger } from "./Tools.js";
 
 /**
  * 登录账号配置数据
@@ -161,6 +160,7 @@ class VertoClient extends Destroyable {
         // logger.log('Create Verto:', self.options);
 
         self.options.enableLog ? logger.enable() : logger.disable();
+        delete self.options.enableLog;
 
         const urlParsed = parseUrl(self.options.fsConfig.url);
         self.urlParsed = urlParsed;
@@ -214,11 +214,10 @@ class VertoClient extends Destroyable {
      * @default true
     */
     set enableLog(value) {
-        this.options.enableLog = value;
-        value ? logger.enable() : logger.disable();
+        logger.enabled = value;
     }
     get enableLog() {
-        return this.options.enableLog;
+        return logger.enabled;
     }
 
     /**
@@ -830,4 +829,16 @@ Object.defineProperties(VertoClient, {
     }
 });
 
+/**
+ * 创建VertoClient实例
+ * @param {object} options 配置项，@see VertoClient.constructor
+ * @param {object} callbacks 回调通知，@see VertoClient.constructor
+ * @returns {VertoClient}
+*/
+function createClient(options, callbacks) {
+    return new VertoClient(options, callbacks);
+};
+
 export default VertoClient;
+export { VertoClient as Client, createClient, EventChannel, VertoClient, VertoMethod };
+

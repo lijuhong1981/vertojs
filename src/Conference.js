@@ -2,11 +2,14 @@ import Check from "@lijuhong1981/jscheck/src/Check.js";
 import defined from "@lijuhong1981/jscheck/src/isDefined.js";
 import isFunction from "@lijuhong1981/jscheck/src/isFunction.js";
 import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
-import HashArray from "@lijuhong1981/jslib/src/HashArray.js";
-import * as logger from "@lijuhong1981/jslib/src/logger.js";
-import Dialog from "./Dialog.js";
-import { EventType, VertoMethod } from "./Enums.js";
 import formatDate from "@lijuhong1981/jslib/src/formatDate.js";
+import HashArray from "@lijuhong1981/jslib/src/HashArray.js";
+import { EventType, VertoMethod } from "./Enums.js";
+import { logger } from "./Tools.js";
+
+/**
+ * @import Dialog from "./Dialog.js";
+*/
 
 /**
  * 组会状态
@@ -1308,4 +1311,4 @@ Object.defineProperties(Conference, {
 });
 
 export default Conference;
-export { Conference, ConferenceState, ConferenceLiveArray, ConferenceLiveArrayAction };
+export { Conference, ConferenceLiveArray, ConferenceLiveArrayAction, ConferenceState };
